@@ -1,5 +1,6 @@
 import { HttpStatus, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AppError } from './common/errors/app-error';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -22,6 +23,25 @@ async function bootstrap(): Promise<void> {
       errorHttpStatusCode: HttpStatus.BAD_REQUEST,
     }),
   );
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('PromoCode Manager API')
+    .setDescription('CQRS API: commands -> MongoDB, analytics queries -> ClickHouse')
+    .setVersion('1.0.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        in: 'header',
+      },
+      'access-token',
+    )
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  const apiPrefix = process.env.API_PREFIX ?? 'api';
+  SwaggerModule.setup(`${apiPrefix}/docs`, app, swaggerDocument);
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);

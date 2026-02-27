@@ -1,3 +1,14 @@
+import {
+  Alert,
+  Box,
+  Button,
+  Container,
+  Link as MuiLink,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { FormEvent, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth-context';
@@ -76,45 +87,57 @@ export function LoginPage(): JSX.Element {
   };
 
   return (
-    <main className="page auth-page">
-      <section className="card">
-        <h1>Login</h1>
-        <p className="muted">Use your email and password to continue.</p>
-        {auth.error ? <p className="error">{auth.error}</p> : null}
+    <Container maxWidth="sm" sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', py: 4 }}>
+      <Paper elevation={3} sx={{ width: '100%', p: 4 }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Login
+            </Typography>
+            <Typography color="text.secondary">Use your email and password to continue.</Typography>
+          </Box>
 
-        <form onSubmit={handleSubmit} className="form">
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-            {emailError ? <span className="field-error">{emailError}</span> : null}
-          </label>
+          {auth.error ? <Alert severity="error">{auth.error}</Alert> : null}
 
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              minLength={8}
-              required
-            />
-            {passwordError ? <span className="field-error">{passwordError}</span> : null}
-          </label>
+          <Box component="form" onSubmit={handleSubmit}>
+            <Stack spacing={2}>
+              <TextField
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                error={Boolean(emailError)}
+                helperText={emailError ?? ' '}
+                fullWidth
+              />
 
-          <button type="submit" disabled={isSubmitDisabled}>
-            {submitting ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                inputProps={{ minLength: 8 }}
+                error={Boolean(passwordError)}
+                helperText={passwordError ?? ' '}
+                fullWidth
+              />
 
-        <p className="muted">
-          No account? <Link to="/register">Create one</Link>
-        </p>
-      </section>
-    </main>
+              <Button type="submit" disabled={isSubmitDisabled} fullWidth>
+                {submitting ? 'Signing in...' : 'Sign in'}
+              </Button>
+            </Stack>
+          </Box>
+
+          <Typography color="text.secondary">
+            No account?{' '}
+            <MuiLink component={Link} to="/register" underline="hover">
+              Create one
+            </MuiLink>
+          </Typography>
+        </Stack>
+      </Paper>
+    </Container>
   );
 }

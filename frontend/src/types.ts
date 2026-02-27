@@ -86,6 +86,46 @@ export type Promocode = {
   updatedAt: string;
 };
 
+export type Order = {
+  id: string;
+  userId: string;
+  amount: number;
+  promocodeId: string | null;
+  promocodeCode: string | null;
+  discountAmount: number;
+  finalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreatePromocodeInput = {
+  code: string;
+  discountPercent: number;
+  usageLimitTotal: number;
+  usageLimitPerUser: number;
+  dateFrom?: string;
+  dateTo?: string;
+  isActive?: boolean;
+};
+
+export type UpdatePromocodeInput = {
+  code?: string;
+  discountPercent?: number;
+  usageLimitTotal?: number;
+  usageLimitPerUser?: number;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  isActive?: boolean;
+};
+
+export type CreateOrderInput = {
+  amount: number;
+};
+
+export type ApplyPromocodeInput = {
+  code: string;
+};
+
 export type AnalyticsQueryInput = {
   page: number;
   pageSize: number;

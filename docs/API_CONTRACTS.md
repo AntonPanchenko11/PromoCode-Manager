@@ -1,6 +1,6 @@
 # API Quick Guide
 
-Этот файл для быстрого понимания API. Полная схема: [openapi.yaml](./openapi.yaml).
+Этот файл для быстрого понимания API. Источник истины: Swagger UI `http://localhost:3000/api/docs`.
 
 ## Base
 - Base URL: `http://localhost:3000/api`

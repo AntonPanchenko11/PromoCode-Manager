@@ -8,7 +8,8 @@
 3. [API_CONTRACTS.md](./API_CONTRACTS.md) — быстрый обзор endpoint'ов.
 
 ## Для интеграции API
-- [openapi.yaml](./openapi.yaml) — полный и точный контракт API.
+- Swagger UI (runtime): `http://localhost:3000/api/docs`
+- [openapi.yaml](./openapi.yaml) — snapshot-контракт API для быстрого импорта в инструменты.
 
 ## Для разработки
 - [TECH_STACK.md](./TECH_STACK.md) — актуальный стек технологий.

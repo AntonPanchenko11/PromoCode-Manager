@@ -41,6 +41,7 @@ npm run dev
 ### 5) Открыть приложение
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:3000/api`
+- Swagger UI: `http://localhost:3000/api/docs`
 
 ## Что есть в приложении
 - регистрация/логин (JWT access + refresh);
@@ -56,6 +57,45 @@ npm run dev
 - Redis используется для distributed lock (`apply-promocode`) и кэша аналитики.
 
 Детали: [ARCHITECTURE.md](ARCHITECTURE.md)
+
+### Контур системы
+```mermaid
+flowchart LR
+  UI[React SPA] -->|JWT + API| API[NestJS API]
+  API -->|Command writes| MG[(MongoDB)]
+  API -->|Query reads| CH[(ClickHouse)]
+  API <--> |Lock + Cache| RD[(Redis)]
+```
+
+### Синхронизация MongoDB -> ClickHouse
+```mermaid
+sequenceDiagram
+  participant FE as Frontend
+  participant BE as Backend
+  participant MG as MongoDB
+  participant OB as Outbox Worker
+  participant CH as ClickHouse
+
+  FE->>BE: POST/PATCH mutation
+  BE->>MG: Write transaction
+  BE->>MG: Insert outbox event
+  OB->>MG: Claim pending event
+  OB->>CH: Upsert denormalized row
+  FE->>BE: GET /analytics/*
+  BE->>CH: Read only from ClickHouse
+```
+
+### ClickHouse таблицы
+- `users` — профиль пользователя + агрегаты для аналитики пользователей.
+- `promocodes` — параметры промокодов + метрики эффективности.
+- `orders` — заказы с денормализованными полями пользователя/промокода.
+- `promo_usages` — история применений промокодов.
+
+### Server-side подход
+- пагинация: `page`, `pageSize`;
+- сортировка: `sortBy`, `sortDir`;
+- фильтрация по колонкам: `filters`;
+- глобальный фильтр дат: `dateFrom`, `dateTo`.
 
 ## Быстрые проверки
 
@@ -81,7 +121,8 @@ docker compose exec -T clickhouse clickhouse-client --user pcm_user --password p
 
 ## Документация
 - карта документации: [docs/README.md](docs/README.md)
-- OpenAPI: [docs/openapi.yaml](docs/openapi.yaml)
+- Swagger UI (из аннотаций Nest): `http://localhost:3000/api/docs`
+- OpenAPI snapshot: [docs/openapi.yaml](docs/openapi.yaml)
 - API в кратком виде: [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md)
 - схема ClickHouse: [docs/CLICKHOUSE_SCHEMA.md](docs/CLICKHOUSE_SCHEMA.md)
 - техстек: [docs/TECH_STACK.md](docs/TECH_STACK.md)

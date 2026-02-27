@@ -1,12 +1,17 @@
 import {
+  ApplyPromocodeInput,
   AnalyticsPromocodesRow,
   AnalyticsPromoUsagesRow,
   AnalyticsQueryInput,
   AnalyticsUsersRow,
   ApiError,
   AuthResponse,
+  CreateOrderInput,
+  CreatePromocodeInput,
+  Order,
   PaginatedResponse,
   Promocode,
+  UpdatePromocodeInput,
   User,
 } from '../types';
 import { tokenStorage } from './storage';
@@ -238,10 +243,55 @@ export const usersApi = {
 };
 
 export const promocodesApi = {
+  create(input: CreatePromocodeInput): Promise<Promocode> {
+    return request<Promocode>('/promocodes', {
+      method: 'POST',
+      auth: true,
+      body: input,
+    });
+  },
+
+  update(promocodeId: string, input: UpdatePromocodeInput): Promise<Promocode> {
+    return request<Promocode>(`/promocodes/${promocodeId}`, {
+      method: 'PATCH',
+      auth: true,
+      body: input as Record<string, unknown>,
+    });
+  },
+
   deactivate(promocodeId: string): Promise<Promocode> {
     return request<Promocode>(`/promocodes/${promocodeId}/deactivate`, {
       method: 'PATCH',
       auth: true,
+    });
+  },
+};
+
+export const ordersApi = {
+  create(input: CreateOrderInput): Promise<Order> {
+    return request<Order>('/orders', {
+      method: 'POST',
+      auth: true,
+      body: input as Record<string, unknown>,
+    });
+  },
+
+  listMine(page: number, pageSize: number): Promise<PaginatedResponse<Order>> {
+    return request<PaginatedResponse<Order>>('/orders/my', {
+      method: 'GET',
+      auth: true,
+      query: {
+        page,
+        pageSize,
+      },
+    });
+  },
+
+  applyPromocode(orderId: string, input: ApplyPromocodeInput): Promise<Order> {
+    return request<Order>(`/orders/${orderId}/apply-promocode`, {
+      method: 'POST',
+      auth: true,
+      body: input as Record<string, unknown>,
     });
   },
 };

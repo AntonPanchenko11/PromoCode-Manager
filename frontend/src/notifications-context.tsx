@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { Alert, AlertColor, Snackbar } from '@mui/material';
+import { SyntheticEvent, createContext, useContext, useMemo, useState } from 'react';
 
 type ToastType = 'success' | 'error' | 'warning';
 
@@ -14,15 +15,25 @@ type NotificationsContextValue = {
 
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
 
+const mapAlertSeverity = (type: ToastType): AlertColor => type;
+
 export function NotificationsProvider({ children }: { children: React.ReactNode }): JSX.Element {
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [queue, setQueue] = useState<Toast[]>([]);
+
+  const current = queue[0] ?? null;
+  const isOpen = current !== null;
 
   const notify = (type: ToastType, message: string): void => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
-    setToasts((current) => [...current, { id, type, message }]);
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, 4200);
+    setQueue((prev) => [...prev, { id, type, message }]);
+  };
+
+  const handleClose = (_event?: Event | SyntheticEvent, reason?: string): void => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setQueue((prev) => prev.slice(1));
   };
 
   const value = useMemo<NotificationsContextValue>(() => ({
@@ -32,13 +43,23 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   return (
     <NotificationsContext.Provider value={value}>
       {children}
-      <div className="toast-stack" role="status" aria-live="polite">
-        {toasts.map((toast) => (
-          <div key={toast.id} className={`toast toast-${toast.type}`}>
-            {toast.message}
-          </div>
-        ))}
-      </div>
+      <Snackbar
+        open={isOpen}
+        autoHideDuration={4200}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        {current ? (
+          <Alert
+            onClose={handleClose}
+            severity={mapAlertSeverity(current.type)}
+            variant="filled"
+            sx={{ width: '100%' }}
+          >
+            {current.message}
+          </Alert>
+        ) : <span />}
+      </Snackbar>
     </NotificationsContext.Provider>
   );
 }
