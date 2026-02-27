@@ -1,0 +1,77 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ------------------------------
+# Env / Secrets
+# ------------------------------
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+backend/.env
+backend/.env.local
+frontend/.env
+frontend/.env.local
+
+# Keep examples in repo
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# ------------------------------
+# Dependencies
+# ------------------------------
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# ------------------------------
+# Build outputs
+# ------------------------------
+dist/
+backend/dist/
+frontend/dist/
+build/
+
+# TypeScript / tooling artifacts
+*.tsbuildinfo
+.vite/
+
+# ------------------------------
+# Test / coverage
+# ------------------------------
+coverage/
+backend/coverage/
+frontend/coverage/
+.nyc_output/
+
+# ------------------------------
+# Logs / runtime temp files
+# ------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+*.pid
+*.pid.lock
+
+# ------------------------------
+# Local temporary artifacts
+# ------------------------------
+tmp/
+temp/
+
+# Accidentally created nested git repo dir
+PromoCode-Manager/

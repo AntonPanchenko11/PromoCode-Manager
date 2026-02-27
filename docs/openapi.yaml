@@ -1,0 +1,1110 @@
+openapi: 3.0.3
+info:
+  title: PromoCode Manager API
+  version: 1.0.0
+  description: |
+    API for PromoCode Manager mini-app.
+    Command-side writes use MongoDB, analytics reads use ClickHouse.
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+tags:
+  - name: Auth
+  - name: Users
+  - name: Promocodes
+  - name: Orders
+  - name: Analytics
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register new user and issue JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: user@example.com
+              name: Demo User
+              phone: "+15550001111"
+              password: Passw0rd!123
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and issue JWT access/refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: Passw0rd!123
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh JWT pair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh-token
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and revoke refresh token hash
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
+              example:
+                success: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /users:
+    post:
+      tags: [Users]
+      summary: Create user (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectIdPath'
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      tags: [Users]
+      summary: Update user by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /users/{id}/deactivate:
+    patch:
+      tags: [Users]
+      summary: Soft-deactivate user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectIdPath'
+      responses:
+        '200':
+          description: Deactivated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /promocodes:
+    post:
+      tags: [Promocodes]
+      summary: Create promocode
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePromocodeRequest'
+            example:
+              code: SUMMER2026
+              discountPercent: 10
+              usageLimitTotal: 1000
+              usageLimitPerUser: 2
+              dateFrom: '2026-06-01T00:00:00.000Z'
+              dateTo: '2026-08-31T23:59:59.999Z'
+              isActive: true
+      responses:
+        '201':
+          description: Created promocode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromocodeResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /promocodes/{id}:
+    get:
+      tags: [Promocodes]
+      summary: Get promocode by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectIdPath'
+      responses:
+        '200':
+          description: Promocode found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromocodeResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      tags: [Promocodes]
+      summary: Update promocode
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePromocodeRequest'
+      responses:
+        '200':
+          description: Updated promocode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromocodeResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /promocodes/{id}/deactivate:
+    patch:
+      tags: [Promocodes]
+      summary: Soft-deactivate promocode
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectIdPath'
+      responses:
+        '200':
+          description: Deactivated promocode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromocodeResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Create order for current user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            example:
+              amount: 120.5
+      responses:
+        '201':
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /orders/my:
+    get:
+      tags: [Orders]
+      summary: Get current user orders (command-side operational view)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+      responses:
+        '200':
+          description: Paginated orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrdersResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /orders/{id}/apply-promocode:
+    post:
+      tags: [Orders]
+      summary: Apply promocode to existing order
+      description: |
+        Includes ownership, active status, date range, total limit and per-user limit checks.
+        Protected with distributed Redis lock to prevent race conditions.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyPromocodeRequest'
+            example:
+              code: SUMMER2026
+      responses:
+        '200':
+          description: Updated order with applied promocode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /analytics/users:
+    get:
+      tags: [Analytics]
+      summary: Users analytical table (ClickHouse-only read path)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/SortByUsersQuery'
+        - $ref: '#/components/parameters/SortDirQuery'
+        - $ref: '#/components/parameters/DateFromQuery'
+        - $ref: '#/components/parameters/DateToQuery'
+        - $ref: '#/components/parameters/FiltersQuery'
+      responses:
+        '200':
+          description: Paginated users analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsersAnalyticsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /analytics/promocodes:
+    get:
+      tags: [Analytics]
+      summary: Promocodes analytical table (ClickHouse-only read path)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/SortByPromocodesQuery'
+        - $ref: '#/components/parameters/SortDirQuery'
+        - $ref: '#/components/parameters/DateFromQuery'
+        - $ref: '#/components/parameters/DateToQuery'
+        - $ref: '#/components/parameters/FiltersQuery'
+      responses:
+        '200':
+          description: Paginated promocodes analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPromocodesAnalyticsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /analytics/promo-usages:
+    get:
+      tags: [Analytics]
+      summary: Promo usages analytical table (ClickHouse-only read path)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - $ref: '#/components/parameters/SortByPromoUsagesQuery'
+        - $ref: '#/components/parameters/SortDirQuery'
+        - $ref: '#/components/parameters/DateFromQuery'
+        - $ref: '#/components/parameters/DateToQuery'
+        - $ref: '#/components/parameters/FiltersQuery'
+      responses:
+        '200':
+          description: Paginated promo usages analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPromoUsagesAnalyticsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ObjectIdPath:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+      example: 67bf9ddf4289b17ab8f1c111
+    PageQuery:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSizeQuery:
+      in: query
+      name: pageSize
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    SortDirQuery:
+      in: query
+      name: sortDir
+      schema:
+        type: string
+        enum: [asc, desc]
+    SortByUsersQuery:
+      in: query
+      name: sortBy
+      schema:
+        type: string
+        enum: [createdAt, email, name, ordersCount, totalSpent, totalDiscount, usedPromocodesCount]
+    SortByPromocodesQuery:
+      in: query
+      name: sortBy
+      schema:
+        type: string
+        enum: [createdAt, code, discountPercent, usagesCount, revenue, uniqueUsers, totalDiscount]
+    SortByPromoUsagesQuery:
+      in: query
+      name: sortBy
+      schema:
+        type: string
+        enum: [usedAt, discountAmount, orderAmount, userEmail, promocodeCode]
+    DateFromQuery:
+      in: query
+      name: dateFrom
+      schema:
+        type: string
+        format: date-time
+    DateToQuery:
+      in: query
+      name: dateTo
+      schema:
+        type: string
+        format: date-time
+    FiltersQuery:
+      in: query
+      name: filters
+      description: JSON string with endpoint-specific server-side filters.
+      schema:
+        type: string
+      example: '{"isActive":true,"code":"SUMMER"}'
+
+  responses:
+    ValidationError:
+      description: Invalid input payload or query params
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 400
+            error: Bad Request
+            code: VALIDATION_ERROR
+            message: Validation failed
+            details:
+              fields:
+                - field: email
+                  message: email must be an email
+            timestamp: '2026-02-26T10:00:00.000Z'
+            path: /api/auth/register
+    UnauthorizedError:
+      description: Authentication required or token invalid/expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 401
+            error: Unauthorized
+            code: AUTH_UNAUTHORIZED
+            message: Unauthorized
+            timestamp: '2026-02-26T10:00:00.000Z'
+            path: /api/auth/me
+    ForbiddenError:
+      description: Authenticated but not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 403
+            error: Forbidden
+            code: USER_INACTIVE
+            message: User is inactive
+            timestamp: '2026-02-26T10:00:00.000Z'
+            path: /api/orders
+    NotFoundError:
+      description: Entity not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            error: Not Found
+            code: USER_NOT_FOUND
+            message: User not found
+            timestamp: '2026-02-26T10:00:00.000Z'
+            path: /api/users/67bf9ddf4289b17ab8f1c111
+    ConflictError:
+      description: Business conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 409
+            error: Conflict
+            code: ORDER_ALREADY_HAS_PROMOCODE
+            message: Order already has promocode
+            timestamp: '2026-02-26T10:00:00.000Z'
+            path: /api/orders/67bf9ddf4289b17ab8f1c111/apply-promocode
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, name, phone, password]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        phone:
+          type: string
+          description: E.164 phone format
+          example: "+15550001111"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          minLength: 16
+    RefreshResponse:
+      type: object
+      required: [accessToken, refreshToken]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+    LogoutResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+    AuthResponse:
+      type: object
+      required: [accessToken, refreshToken, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserResponse'
+    CreateUserRequest:
+      type: object
+      required: [email, name, phone, password]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        phone:
+          type: string
+          example: "+15550001111"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        isActive:
+          type: boolean
+          default: true
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        phone:
+          type: string
+        isActive:
+          type: boolean
+      additionalProperties: false
+    UserResponse:
+      type: object
+      required: [id, email, name, phone, isActive, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreatePromocodeRequest:
+      type: object
+      required: [code, discountPercent, usageLimitTotal, usageLimitPerUser]
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 32
+          example: SUMMER2026
+        discountPercent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        usageLimitTotal:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        usageLimitPerUser:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        dateFrom:
+          type: string
+          format: date-time
+          nullable: true
+        dateTo:
+          type: string
+          format: date-time
+          nullable: true
+        isActive:
+          type: boolean
+          default: true
+    UpdatePromocodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 32
+        discountPercent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        usageLimitTotal:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        usageLimitPerUser:
+          type: integer
+          minimum: 1
+          maximum: 10000
+        dateFrom:
+          type: string
+          format: date-time
+          nullable: true
+        dateTo:
+          type: string
+          format: date-time
+          nullable: true
+        isActive:
+          type: boolean
+      additionalProperties: false
+    PromocodeResponse:
+      type: object
+      required:
+        - id
+        - code
+        - discountPercent
+        - usageLimitTotal
+        - usageLimitPerUser
+        - dateFrom
+        - dateTo
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        discountPercent:
+          type: integer
+        usageLimitTotal:
+          type: integer
+        usageLimitPerUser:
+          type: integer
+        dateFrom:
+          type: string
+          format: date-time
+          nullable: true
+        dateTo:
+          type: string
+          format: date-time
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateOrderRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+          minimum: 0.01
+          maximum: 1000000
+    ApplyPromocodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 32
+          example: SUMMER2026
+    OrderResponse:
+      type: object
+      required:
+        - id
+        - userId
+        - amount
+        - promocodeId
+        - promocodeCode
+        - discountAmount
+        - finalAmount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        amount:
+          type: number
+        promocodeId:
+          type: string
+          nullable: true
+        promocodeCode:
+          type: string
+          nullable: true
+        discountAmount:
+          type: number
+        finalAmount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PaginatedOrdersResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderResponse'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+    AnalyticsUserRow:
+      type: object
+      required: [userId, email, name, phone, isActive, ordersCount, totalSpent, totalDiscount, usedPromocodesCount, createdAt]
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        isActive:
+          type: boolean
+        ordersCount:
+          type: integer
+        totalSpent:
+          type: number
+        totalDiscount:
+          type: number
+        usedPromocodesCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    AnalyticsPromocodeRow:
+      type: object
+      required:
+        - promocodeId
+        - code
+        - discountPercent
+        - isActive
+        - usageLimitTotal
+        - usageLimitPerUser
+        - usagesCount
+        - revenue
+        - uniqueUsers
+        - totalDiscount
+        - createdAt
+      properties:
+        promocodeId:
+          type: string
+        code:
+          type: string
+        discountPercent:
+          type: integer
+        isActive:
+          type: boolean
+        usageLimitTotal:
+          type: integer
+        usageLimitPerUser:
+          type: integer
+        usagesCount:
+          type: integer
+        revenue:
+          type: number
+        uniqueUsers:
+          type: integer
+        totalDiscount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+    AnalyticsPromoUsageRow:
+      type: object
+      required:
+        - usageId
+        - orderId
+        - userId
+        - userName
+        - userEmail
+        - promocodeId
+        - promocodeCode
+        - orderAmount
+        - discountAmount
+        - usedAt
+      properties:
+        usageId:
+          type: string
+        orderId:
+          type: string
+        userId:
+          type: string
+        userName:
+          type: string
+        userEmail:
+          type: string
+        promocodeId:
+          type: string
+        promocodeCode:
+          type: string
+        orderAmount:
+          type: number
+        discountAmount:
+          type: number
+        usedAt:
+          type: string
+          format: date-time
+    PaginatedUsersAnalyticsResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsUserRow'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+    PaginatedPromocodesAnalyticsResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsPromocodeRow'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+    PaginatedPromoUsagesAnalyticsResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsPromoUsageRow'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+    ErrorResponse:
+      type: object
+      required: [statusCode, error, code, message, timestamp, path]
+      properties:
+        statusCode:
+          type: integer
+        error:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
